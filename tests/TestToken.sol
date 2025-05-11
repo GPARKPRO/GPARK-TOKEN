@@ -2,14 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "remix_tests.sol"; // Remix test framework
-import "../contracts/GParkToken.sol"; // ваш основной контракт
+import "../contracts/GParkToken.sol";
 
 contract TestToken {
     GParkToken private token;
 
-    /// @notice вызывается перед всеми тестами
     function beforeAll() public {
-        // передаем любое значение в daoSafe (в тестах оно не играет роли)
+        
         token = new GParkToken(address(0x1234567890123456789012345678901234567890));
     }
 
