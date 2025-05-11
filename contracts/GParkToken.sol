@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract GParkTokenV4 is ERC20, ERC20Permit, ERC20Votes, Ownable {
+contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
 
     string public constant description = "GPARK is the token of Global Park DAO, governing participation, NFT coordinates, staking and community development in a decentralized cultural space. More info: https://globalpark.io";
 
@@ -25,8 +25,9 @@ contract GParkTokenV4 is ERC20, ERC20Permit, ERC20Votes, Ownable {
     event TransferWithNote(address indexed from, address indexed to, uint256 amount, string note);
 
     constructor(address _daoSafe)
-        ERC20("Global Park Token", "GPARK")
-        ERC20Permit("Global Park Token")
+        ERC20("GParkToken", "GPARK")
+        ERC20Permit("GParkToken")
+        // Set daoSafe as owner to allow DAO-controlled ownership from deployment
         Ownable(_daoSafe)
     {
         daoSafe = _daoSafe;
@@ -108,6 +109,16 @@ contract GParkTokenV4 is ERC20, ERC20Permit, ERC20Votes, Ownable {
         _transfer(msg.sender, to, amount);
         emit TransferWithNote(msg.sender, to, amount, note);
         return true;
+    }
+
+    // ================== Additional Compatibility ===================
+
+    function name() public view override returns (string memory) {
+        return super.name();
+    }
+
+    function symbol() public view override returns (string memory) {
+        return super.symbol();
     }
 
     // ================== Overrides ===================
