@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.30;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
@@ -9,35 +9,36 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @notice Enables DAO governance, cultural NFT coordinates, staking and community contributions
 contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
 
-    /// @notice Project description
+    // --------------------
+    // State variables
+    // --------------------
+
     string public constant description = "GPARK is the token of Global Park DAO, governing participation, NFT coordinates, staking and community development in a decentralized cultural space. More info: https://globalpark.io";
 
-    /// @notice Structure of individual vesting allocation
     struct Vesting {
-        uint256 total;        // Total amount locked for vesting
-        uint256 claimed;      // Amount already claimed
-        uint64 cliffEnd;      // Cliff period end timestamp
-        uint64 vestingEnd;    // Vesting completion timestamp
-        uint64 interval;      // Step interval for progressive unlocking
+        uint256 total;
+        uint256 claimed;
+        uint64 cliffEnd;
+        uint64 vestingEnd;
+        uint64 interval;
     }
 
-    /// @notice Mapping of wallet addresses to their vesting schedule
     mapping(address => Vesting) public vestings;
-
-    /// @notice DAO treasury multisig address
     address public immutable daoSafe;
 
-    /// @notice Emitted when vesting is assigned
+    // --------------------
+    // Events
+    // --------------------
+
     event VestingAssigned(address indexed recipient, uint256 amount, uint64 cliffEnd, uint64 vestingEnd, uint64 interval);
-
-    /// @notice Emitted when tokens are claimed from vesting
     event VestingClaimed(address indexed recipient, uint256 amount);
-
-    /// @notice Emitted when a transfer with note occurs
     event TransferWithNote(address indexed from, address indexed to, uint256 amount, string note);
+    event InitialSupplyMinted(address indexed daoSafe, uint256 amount);
 
-    /// @notice Initializes token supply to DAO treasury
-    /// @param _daoSafe The DAO treasury address
+    // --------------------
+    // Constructor
+    // --------------------
+
     constructor(address _daoSafe)
         ERC20("GParkToken", "GPARK")
         ERC20Permit("GParkToken")
@@ -45,20 +46,19 @@ contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     {
         require(_daoSafe != address(0), "daoSafe cannot be zero address");
         daoSafe = _daoSafe;
-        _mint(_daoSafe, 21_000_000 * 10 ** decimals());
+        uint256 supply = 21_000_000 * 10 ** decimals();
+        _mint(_daoSafe, supply);
+        emit InitialSupplyMinted(_daoSafe, supply);
     }
 
-    /// @notice Returns description text
+    // --------------------
+    // External functions
+    // --------------------
+
     function contractDescription() external pure returns (string memory) {
         return description;
     }
 
-    /// @notice Locks tokens under vesting schedule
-    /// @param to recipient address
-    /// @param amount total tokens to lock
-    /// @param cliffDuration seconds for cliff period
-    /// @param vestingDuration seconds for full vesting
-    /// @param interval step size (seconds) for progressive unlocking
     function lockVesting(
         address to,
         uint256 amount,
@@ -83,7 +83,6 @@ contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         emit VestingAssigned(to, amount, v.cliffEnd, v.vestingEnd, v.interval);
     }
 
-    /// @notice Claims unlocked tokens from active vesting
     function claimVested() external {
         Vesting storage v = vestings[msg.sender];
         require(v.total > 0, "No vesting found");
@@ -103,8 +102,6 @@ contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         emit VestingClaimed(msg.sender, claimable);
     }
 
-    /// @notice Returns current vesting status of a user
-    /// @param user address of the beneficiary
     function getVestingStatus(address user) external view returns (
         uint256 total,
         uint256 claimed,
@@ -119,7 +116,16 @@ contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         percentClaimed = v.total > 0 ? (claimed * 10000) / v.total : 0;
     }
 
-    /// @dev Internal calculation of unlocked amount
+    function transferWithNote(address to, uint256 amount, string calldata note) external returns (bool) {
+        _transfer(msg.sender, to, amount);
+        emit TransferWithNote(msg.sender, to, amount, note);
+        return true;
+    }
+
+    // --------------------
+    // Internal functions
+    // --------------------
+
     function _calculateUnlocked(Vesting memory v) internal view returns (uint256) {
         if (block.timestamp < v.cliffEnd) return 0;
         if (block.timestamp >= v.vestingEnd) return v.total;
@@ -131,23 +137,16 @@ contract GParkToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         return (v.total * completedIntervals) / totalIntervals;
     }
 
-    /// @notice Transfers tokens with attached off-chain note
-    function transferWithNote(address to, uint256 amount, string calldata note) external returns (bool) {
-        _transfer(msg.sender, to, amount);
-        emit TransferWithNote(msg.sender, to, amount, note);
-        return true;
-    }
-
-    /// @dev Hook override to enforce vesting transfer restrictions
-    ///      Only unclaimed tokens remain locked. Claimed tokens are freely transferable.
     function _update(address from, address to, uint256 value)
         internal override(ERC20, ERC20Votes)
     {
-        // No additional restrictions needed; claimed tokens = free
         super._update(from, to, value);
     }
 
-    /// @inheritdoc ERC20Permit
+    // --------------------
+    // Overrides
+    // --------------------
+
     function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
         return super.nonces(owner);
     }
